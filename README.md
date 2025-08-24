@@ -168,14 +168,3 @@ docker-compose down
 # Reconstruire les images
 docker-compose build --no-cache
 ```
-
-## Support des équations mathématiques
-
-OnlineBookBrew prend en charge les équations LaTeX en syntaxe Markdown :
-
-- Équations inline : `$E = mc^2$`
-- Équations display : `$$\frac{d}{dx}\left( \int_{0}^{x} f(u)\,du\right)=f(x)$$`
-
----
-
-*Documentation mise à jour le 24 janvier 2025*
