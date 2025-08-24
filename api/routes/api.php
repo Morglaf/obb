@@ -13,7 +13,6 @@ use App\Controllers\AuthController;
 use App\Controllers\UserTemplateController;
 use App\Controllers\UserFontController;
 use App\Controllers\AdminController;
-use App\Controllers\VersionController;
 use App\Middleware\AuthMiddleware;
 use App\Middleware\AdminMiddleware;
 
@@ -758,5 +757,26 @@ return function (App $app, ?AuthMiddleware $authMiddleware = null) {
     });
 
     // Route pour récupérer les informations de version
-    $app->get('/version', [VersionController::class, 'getVersion']);
+    $app->get('/version', function ($request, $response) {
+        try {
+            $versionFile = __DIR__ . '/../version.json';
+            if (file_exists($versionFile)) {
+                $versionData = json_decode(file_get_contents($versionFile), true);
+                return $response->withJson([
+                    'status' => 'success',
+                    'data' => $versionData
+                ]);
+            } else {
+                return $response->withJson([
+                    'status' => 'error',
+                    'message' => 'Fichier de version non trouvé'
+                ], 404);
+            }
+        } catch (Exception $e) {
+            return $response->withJson([
+                'status' => 'error',
+                'message' => 'Erreur lors de la lecture de la version: ' . $e->getMessage()
+            ], 500);
+        }
+    });
 }; 
