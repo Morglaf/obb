@@ -23,8 +23,8 @@ Application web permettant de créer des livres PDF à partir de Markdown.
 
 1. Clonez ce dépôt :
    ```bash
-   git clone https://github.com/votrecompte/OnlineBookBrew.git
-   cd OnlineBookBrew
+   git clone https://github.com/Morglaf/obb.git
+   cd obb
    ```
 
 2. **Configuration de l'environnement** (IMPORTANT pour la sécurité) :
@@ -178,4 +178,4 @@ OnlineBookBrew prend en charge les équations LaTeX en syntaxe Markdown :
 
 ---
 
-*Documentation mise à jour le 24 juillet 2025*
+*Documentation mise à jour le 24 janvier 2025*
