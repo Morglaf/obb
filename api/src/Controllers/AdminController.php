@@ -862,7 +862,7 @@ class AdminController
         
         try {
             // Définir le répertoire de destination selon le type
-            $typesetDir = __DIR__ . '/../../../typeset';
+            $typesetDir = __DIR__ . '/../typeset';
             $templateDir = '';
             
             switch ($templateType) {
@@ -917,16 +917,23 @@ class AdminController
     public function getSystemTemplates(Request $request, Response $response): Response
     {
         try {
-            $typesetDir = __DIR__ . '/../../../typeset';
+            $typesetDir = __DIR__ . '/../typeset';
+            
+            // Debug: afficher le chemin
+            error_log('Typeset directory: ' . $typesetDir);
+            error_log('Typeset directory exists: ' . (is_dir($typesetDir) ? 'YES' : 'NO'));
             
             // Récupérer les templates de layout
             $layouts = $this->getFilesInDirectory($typesetDir . '/layout', '/\.(tex)$/i');
+            error_log('Layouts found: ' . count($layouts));
             
             // Récupérer les templates de couverture
             $covers = $this->getFilesInDirectory($typesetDir . '/cover', '/\.(tex)$/i');
+            error_log('Covers found: ' . count($covers));
             
             // Récupérer les templates d'imposition
             $imposes = $this->getFilesInDirectory($typesetDir . '/impose', '/\.(tex)$/i');
+            error_log('Imposes found: ' . count($imposes));
             
             $responseData = [
                 'status' => 'success',
@@ -1045,7 +1052,7 @@ class AdminController
         }
         
         try {
-            $typesetDir = __DIR__ . '/../../../typeset';
+            $typesetDir = __DIR__ . '/../typeset';
             $templateDir = '';
             
             switch ($templateType) {
