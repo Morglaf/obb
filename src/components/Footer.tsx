@@ -12,7 +12,7 @@ export default function Footer() {
       <div className="max-w-7xl mx-auto py-6 px-4 sm:px-6 lg:px-8">
         <div className="text-center space-y-2">
           <p className="text-sm text-gray-500 dark:text-gray-400">
-            © 2024 Online Book Brew. {t('all_rights_reserved')}
+            © {new Date().getFullYear()} Online Book Brew. {t('all_rights_reserved')}
           </p>
           
           {/* Informations de version */}
