@@ -11,6 +11,7 @@ interface VersionData {
 interface VersionResponse {
   status: string;
   data: VersionData;
+  message?: string;
 }
 
 export const useVersion = () => {
