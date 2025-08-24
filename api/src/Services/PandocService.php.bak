@@ -1,0 +1,557 @@
+<?php
+/**
+ * Online Book Brew - Service Pandoc
+ * 
+ * Service pour gérer la conversion des documents Markdown en LaTeX via pandoc
+ */
+
+namespace App\Services;
+
+class PandocService
+{
+    /**
+     * Configuration de l'application
+     */
+    private $config;
+    
+    /**
+     * Dossier workspace
+     */
+    private $workspaceDir;
+    
+    /**
+     * Constructeur
+     * 
+     * @param array $config Configuration de l'application
+     */
+    public function __construct($config)
+    {
+        $this->config = $config;
+        $this->workspaceDir = $config['paths']['workspace'];
+    }
+    
+    /**
+     * Convertit un fichier Markdown en LaTeX via pandoc dans le conteneur processor
+     * 
+     * @param string $relativeWorkDir Chemin relatif du dossier de travail
+     * @param string $inputFile Nom du fichier d'entrée Markdown (par défaut: content.md)
+     * @param string $outputFile Nom du fichier de sortie LaTeX (par défaut: content.tex)
+     * @return int Code de retour de la commande pandoc
+     * @throws \Exception En cas d'erreur de conversion
+     */
+    public function convertMarkdownToLatex($relativeWorkDir, $inputFile = 'content.md', $outputFile = 'content.tex')
+    {
+        error_log("=== CONVERSION MARKDOWN VERS LATEX ===");
+        error_log("Dossier de travail: " . $relativeWorkDir);
+        error_log("Fichier d'entrée: " . $inputFile);
+        error_log("Fichier de sortie: " . $outputFile);
+        
+        // Construire la commande pandoc
+        $pandocCmd = "pandoc {$inputFile} -o {$outputFile}";
+        error_log("Commande pandoc: " . $pandocCmd);
+        
+        // Exécuter la conversion via le conteneur processor
+        $pandocResult = $this->executeInProcessor($relativeWorkDir, $pandocCmd);
+        
+        if ($pandocResult !== 0) {
+            error_log("Erreur de pandoc dans le conteneur processor");
+            throw new \Exception("Erreur lors de la conversion Markdown vers LaTeX");
+        }
+        
+        error_log("Conversion Markdown vers LaTeX réussie");
+        
+        // Étape 1: Extraire l'en-tête du tableau depuis le Markdown original
+        $markdownPath = $this->workspaceDir . DIRECTORY_SEPARATOR . $relativeWorkDir . DIRECTORY_SEPARATOR . $inputFile;
+        $tableHeader = $this->extractTableHeaderFromMarkdown($markdownPath);
+        
+        // Étape 2: Post-traitement avec l'en-tête extrait
+        $this->convertLongtableToTabular($relativeWorkDir, $outputFile, $tableHeader);
+        
+        return $pandocResult;
+    }
+    
+    /**
+     * Extrait l'en-tête du tableau depuis le Markdown original
+     * 
+     * @param string $markdownPath Chemin vers le fichier Markdown
+     * @return array Liste des en-têtes de colonnes
+     */
+    private function extractTableHeaderFromMarkdown($markdownPath)
+    {
+        error_log("=== EXTRACTION DE L'EN-TÊTE DEPUIS LE MARKDOWN ===");
+        
+        if (!file_exists($markdownPath)) {
+            error_log("ERREUR: Fichier Markdown introuvable: " . $markdownPath);
+            return [];
+        }
+        
+        $content = file_get_contents($markdownPath);
+        if ($content === false) {
+            error_log("ERREUR: Impossible de lire le fichier Markdown: " . $markdownPath);
+            return [];
+        }
+        
+        $lines = explode("\n", $content);
+        $headers = [];
+        
+        // Pattern simple pour détecter les tableaux Markdown
+        // Cherche: | en-tête1 | en-tête2 | ... |
+        $tablePattern = '/^\|(.+?)\|$/';
+        
+        foreach ($lines as $i => $line) {
+            $line = trim($line);
+            if (preg_match($tablePattern, $line)) {
+                // C'est une ligne de tableau, extraire les cellules
+                $cells = array_filter(array_map('trim', explode('|', $line)));
+                if (count($cells) >= 2) { // Au moins 2 colonnes
+                    $headers = array_values($cells);
+                    error_log("En-tête trouvé à la ligne " . ($i + 1) . ": " . implode(', ', $headers));
+                    break;
+                }
+            }
+        }
+        
+        return $headers;
+    }
+    
+    /**
+     * Convertit les environnements longtable en tabular avec bordures et \hline
+     * 
+     * @param string $relativeWorkDir Chemin relatif du dossier de travail
+     * @param string $outputFile Nom du fichier LaTeX à traiter
+     * @param array $tableHeader En-tête extrait du Markdown
+     */
+    private function convertLongtableToTabular($relativeWorkDir, $outputFile, $tableHeader = [])
+    {
+        error_log("=== POST-TRAITEMENT: CONVERSION LONGTABLE -> TABULAR ===");
+        
+        $fullPath = $this->workspaceDir . DIRECTORY_SEPARATOR . $relativeWorkDir . DIRECTORY_SEPARATOR . $outputFile;
+        
+        if (!file_exists($fullPath)) {
+            error_log("ERREUR: Fichier LaTeX introuvable: " . $fullPath);
+            return;
+        }
+        
+        $content = file_get_contents($fullPath);
+        if ($content === false) {
+            error_log("ERREUR: Impossible de lire le fichier LaTeX: " . $fullPath);
+            return;
+        }
+        
+        // Nettoyer les artefacts LaTeX malformés avant de traiter les tableaux
+        $content = $this->cleanLatexArtifacts($content);
+        
+        // Corriger les listes à puces non converties par pandoc
+        $content = $this->fixBulletLists($content);
+        
+        // Corriger les sauts de ligne manquants
+        $content = $this->fixMissingLineBreaks($content);
+        
+        // Convertir les longtable en tabular avec bordures et en-tête
+        $convertedContent = $this->processLongtableBlocks($content, $tableHeader);
+        
+        // Ajouter des espaces autour des tableaux
+        $convertedContent = $this->addSpacingAroundTables($convertedContent);
+        
+        // Sauvegarder le contenu converti
+        if (file_put_contents($fullPath, $convertedContent) === false) {
+            error_log("ERREUR: Impossible de sauvegarder le fichier LaTeX converti: " . $fullPath);
+            return;
+        }
+        
+        error_log("Conversion longtable -> tabular avec bordures terminée");
+    }
+    
+    /**
+     * Nettoie les artefacts LaTeX malformés générés par pandoc
+     * 
+     * @param string $content Contenu LaTeX à nettoyer
+     * @return string Contenu LaTeX nettoyé
+     */
+    private function cleanLatexArtifacts($content)
+    {
+        error_log("=== NETTOYAGE DES ARTEFACTS LATEX ===");
+        
+        // Nettoyer UNIQUEMENT les minipage malformés qui cassent la structure des tableaux
+        // Pattern: \end{minipage} suivi de \hline (dans un contexte de tableau)
+        $content = preg_replace('/\\\\end\{minipage\}\s*\\\\hline/', '\\hline', $content);
+        
+        // Nettoyer les lignes vides multiples
+        $content = preg_replace('/\n\s*\n\s*\n/', "\n\n", $content);
+        
+        // Nettoyer les espaces en fin de ligne
+        $content = preg_replace('/[ \t]+\n/', "\n", $content);
+        
+        error_log("Nettoyage des artefacts LaTeX terminé");
+        return $content;
+    }
+    
+    /**
+     * Traite les blocs longtable pour les convertir en tabular avec bordures
+     * 
+     * @param string $content Contenu LaTeX à traiter
+     * @param array $tableHeader En-tête extrait du Markdown
+     * @return string Contenu LaTeX converti
+     */
+    private function processLongtableBlocks($content, $tableHeader = [])
+    {
+        // Pattern pour détecter les blocs longtable
+        $pattern = '/\\\\begin\{longtable\}\[\]\{([^}]*)\}(.*?)\\\\end\{longtable\}/s';
+        
+        return preg_replace_callback($pattern, function($matches) use ($tableHeader) {
+            $colspec = $matches[1];
+            $tableContent = $matches[2];
+            
+            // Compter le nombre de colonnes
+            $numCols = $this->countColumnsFromSpec($colspec);
+            
+            // Créer la spécification tabular avec bordures
+            $tabularSpec = $this->makeTabularSpec($numCols);
+            
+            // Traiter le contenu du tableau avec l'en-tête
+            $processedContent = $this->processTableContent($tableContent, $tableHeader, $numCols);
+            
+                    // Construire le nouveau tabular
+        return "\\begin{tabular}{{$tabularSpec}}\n\\hline\n{$processedContent}\\end{tabular}";
+        }, $content);
+    }
+    
+    /**
+     * Compte le nombre de colonnes à partir de la spécification longtable
+     * 
+     * @param string $spec Spécification de colonnes (ex: "lll", "c@{}c@{}c")
+     * @return int Nombre de colonnes
+     */
+    private function countColumnsFromSpec($spec)
+    {
+        error_log("Analyse de la spécification: '{$spec}'");
+        
+        // Supprimer les spécifications @{...} qui sont des décorations
+        $spec = preg_replace('/@\{[^}]*\}/', '', $spec);
+        
+        // Supprimer les spécifications p{...} et les convertir en 'p'
+        $spec = preg_replace('/p\{[^}]*\}/', 'p', $spec);
+        
+        // Supprimer les spécifications >{...} qui sont des commandes de formatage
+        $spec = preg_replace('/>\{[^}]*\}/', '', $spec);
+        
+        // Supprimer les spécifications \real{...} qui sont des calculs
+        $spec = preg_replace('/\\\\real\{[^}]*\}/', '', $spec);
+        
+        // Supprimer les espaces et caractères non-alphabétiques
+        $spec = preg_replace('/[^lcrp]/', '', $spec);
+        
+        $numCols = strlen($spec);
+        error_log("Spécification nettoyée: '{$spec}' -> {$numCols} colonnes");
+        
+        // Fallback: si on ne peut pas déterminer, utiliser 2 colonnes (en-tête + données)
+        if ($numCols == 0) {
+            $numCols = 2;
+            error_log("Impossible de déterminer le nombre de colonnes, fallback à {$numCols}");
+        }
+        
+        return $numCols;
+    }
+    
+    /**
+     * Crée la spécification tabular avec bordures
+     * 
+     * @param int $numCols Nombre de colonnes
+     * @return string Spécification tabular (ex: "|c|c|c|")
+     */
+    private function makeTabularSpec($numCols)
+    {
+        if ($numCols <= 0) {
+            $numCols = 2;
+        }
+        
+        return '|' . str_repeat('c|', $numCols);
+    }
+    
+    /**
+     * Traite le contenu du tableau pour ajouter \hline après chaque ligne
+     * 
+     * @param string $tableContent Contenu du tableau
+     * @param array $tableHeader En-tête extrait du Markdown
+     * @param int $numCols Nombre de colonnes
+     * @return string Contenu traité avec \hline
+     */
+    private function processTableContent($tableContent, $tableHeader = [], $numCols = 2)
+    {
+        $lines = explode("\n", $tableContent);
+        $processedLines = [];
+        
+        // Ajouter l'en-tête extrait du Markdown si disponible
+        if (!empty($tableHeader) && count($tableHeader) >= $numCols) {
+            $headerLine = implode(' & ', array_slice($tableHeader, 0, $numCols)) . ' \\\\';
+            $processedLines[] = $headerLine;
+            $processedLines[] = '\\hline';
+            error_log("En-tête ajouté: {$headerLine}");
+        } else {
+            error_log("En-tête non ajouté: tableHeader=" . json_encode($tableHeader) . ", numCols={$numCols}");
+        }
+        
+        foreach ($lines as $i => $line) {
+            $line = trim($line);
+            error_log("Traitement ligne {$i}: '{$line}'");
+            
+            // Ignorer les lignes de contrôle longtable
+            if (in_array($line, ['\\endfirsthead', '\\endhead', '\\endfoot', '\\endlastfoot', 
+                                 '\\toprule', '\\midrule', '\\bottomrule'])) {
+                error_log("  -> Ignorée (contrôle longtable)");
+                continue;
+            }
+            
+            // Ignorer les légendes
+            if (strpos($line, '\\caption') === 0) {
+                error_log("  -> Ignorée (légende)");
+                continue;
+            }
+            
+            // Ignorer les lignes "Continued on next page"
+            if (strpos($line, 'Continued on next page') !== false) {
+                error_log("  -> Ignorée (continued)");
+                continue;
+            }
+            
+            // Ignorer les lignes multicolumn qui ne se terminent pas par \\
+            if (strpos($line, '\\multicolumn') === 0 && !strpos($line, '\\\\')) {
+                error_log("  -> Ignorée (multicolumn)");
+                continue;
+            }
+            
+            // Si c'est une ligne de données (contient des &)
+            if (strpos($line, '&') !== false) {
+                error_log("  -> Traitée (contient &)");
+                // Nettoyer la ligne des artefacts minipage
+                $cleanLine = $this->cleanTableLine($line);
+                if (!empty($cleanLine)) {
+                    $row = rtrim($cleanLine, '\\');
+                    $processedLines[] = $row . ' \\\\';
+                    $processedLines[] = '\\hline';
+                    error_log("  -> Ajoutée: '{$row} \\\\'");
+                } else {
+                    error_log("  -> Ligne nettoyée vide, ignorée");
+                }
+            } else {
+                error_log("  -> Ignorée (pas de &)");
+            }
+        }
+        
+        return implode("\n", $processedLines);
+    }
+    
+    /**
+     * Corrige les listes à puces non converties par pandoc
+     * 
+     * @param string $content Contenu LaTeX à corriger
+     * @return string Contenu LaTeX corrigé
+     */
+    private function fixBulletLists($content)
+    {
+        error_log("=== CORRECTION DES LISTES À PUCES ===");
+        
+        // Traiter ligne par ligne pour éviter de couper les URLs
+        $lines = explode("\n", $content);
+        $processedLines = [];
+        $inList = false;
+        $listStarted = false;
+        
+        foreach ($lines as $line) {
+            $trimmedLine = trim($line);
+            
+            // Détecter le début d'une liste (ligne avec ":" suivie de tirets)
+            if (preg_match('/^(.+):\s*$/', $trimmedLine, $matches)) {
+                $processedLines[] = $matches[1] . ':';
+                $processedLines[] = '';
+                $processedLines[] = '\\begin{itemize}';
+                $inList = true;
+                $listStarted = true;
+                continue;
+            }
+            
+            // Détecter les éléments de liste (lignes commençant par - ou *)
+            if ($inList && preg_match('/^[-*]\s+(.+)$/', $trimmedLine, $matches)) {
+                $processedLines[] = '\\item ' . $matches[1];
+                continue;
+            }
+            
+            // Si on était dans une liste et qu'on trouve autre chose
+            if ($inList && $listStarted && !preg_match('/^[-*]\s+/', $trimmedLine) && $trimmedLine !== '') {
+                $processedLines[] = '\\end{itemize}';
+                $processedLines[] = '';
+                $inList = false;
+                $listStarted = false;
+            }
+            
+            // Ajouter la ligne normale
+            $processedLines[] = $line;
+        }
+        
+        // Fermer la liste si elle est encore ouverte
+        if ($inList && $listStarted) {
+            $processedLines[] = '\\end{itemize}';
+        }
+        
+        $content = implode("\n", $processedLines);
+        
+        error_log("Correction des listes à puces terminée");
+        return $content;
+    }
+    
+    /**
+     * Corrige les sauts de ligne manquants qui empêchent les titres
+     * 
+     * @param string $content Contenu LaTeX à corriger
+     * @return string Contenu LaTeX corrigé
+     */
+    private function fixMissingLineBreaks($content)
+    {
+        error_log("=== CORRECTION DES SAUTS DE LIGNE MANQUANTS ===");
+        
+        // Utiliser des remplacements simples et directs
+        $content = str_replace('\\section{', "\n\n\\section{", $content);
+        $content = str_replace('\\subsection{', "\n\n\\subsection{", $content);
+        $content = str_replace('\\subsubsection{', "\n\n\\subsubsection{", $content);
+        
+        // Corriger les fins d'environnements collées
+        $content = str_replace('\\end{tabular}', "\\end{tabular}\n\n", $content);
+        $content = str_replace('\\end{itemize}', "\\end{itemize}\n\n", $content);
+        $content = str_replace('\\end{longtable}', "\\end{longtable}\n\n", $content);
+        
+        // Corriger les images collées
+        $content = str_replace('\\includegraphics{', "\n\n\\includegraphics{", $content);
+        
+        error_log("Correction des sauts de ligne terminée");
+        return $content;
+    }
+    
+    /**
+     * Ajoute des espaces autour des tableaux pour améliorer la lisibilité
+     * 
+     * @param string $content Contenu LaTeX à traiter
+     * @return string Contenu LaTeX avec espaces ajoutés
+     */
+    private function addSpacingAroundTables($content)
+    {
+        error_log("=== AJOUT D'ESPACES AUTOUR DES TABLEAUX ===");
+        
+        // Ajouter un espace avant \begin{tabular}
+        $content = preg_replace('/([^\\s])\\\\begin\{tabular\}/', '$1\n\n\\begin{tabular}', $content);
+        
+        // Ajouter un espace après \end{tabular}
+        $content = preg_replace('/\\\\end\{tabular\}([^\\s])/', "\\end{tabular}\n\n$1", $content);
+        
+        // Ajouter un espace avant \begin{longtable}
+        $content = preg_replace('/([^\\s])\\\\begin\{longtable\}/', '$1\n\n\\begin{longtable}', $content);
+        
+        // Ajouter un espace après \end{longtable}
+        $content = preg_replace('/\\\\end\{longtable\}([^\\s])/', "\\end{longtable}\n\n$1", $content);
+        
+        error_log("Ajout d'espaces autour des tableaux terminé");
+        return $content;
+    }
+    
+    /**
+     * Nettoie une ligne de tableau des artefacts minipage
+     * 
+     * @param string $line Ligne à nettoyer
+     * @return string Ligne nettoyée
+     */
+    private function cleanTableLine($line)
+    {
+        // Supprimer les commandes minipage malformées
+        $line = preg_replace('/\\\\end\{minipage\}/', '', $line);
+        $line = preg_replace('/\\\\begin\{minipage\}\[b\]\{\\\\linewidth\}\\\\raggedright/', '', $line);
+        
+        // Nettoyer les espaces multiples
+        $line = preg_replace('/\s+/', ' ', $line);
+        
+        // Nettoyer les espaces autour des &
+        $line = preg_replace('/\s*&\s*/', ' & ', $line);
+        
+        // Supprimer les \\ en fin de ligne
+        $line = rtrim($line, '\\');
+        
+        return trim($line);
+    }
+    
+    /**
+     * Exécute une commande dans le conteneur processor
+     * 
+     * @param string $workDir Répertoire de travail relatif
+     * @param string $command Commande à exécuter
+     * @return int Code de retour de la commande
+     */
+    private function executeInProcessor($workDir, $command)
+    {
+        error_log("=== EXÉCUTION DANS PROCESSOR ===");
+        error_log("WorkDir: " . $workDir);
+        error_log("Command: " . $command);
+        
+        // Créer le répertoire de commandes s'il n'existe pas
+        $commandsDir = $this->workspaceDir . DIRECTORY_SEPARATOR . 'commands';
+        error_log("Commands dir: " . $commandsDir);
+        
+        if (!is_dir($commandsDir)) {
+            if (!mkdir($commandsDir, 0755, true)) {
+                error_log("ERREUR: Impossible de créer le répertoire de commandes: " . $commandsDir);
+                return 1;
+            }
+        }
+        error_log("Répertoire de commandes OK");
+        
+        // Générer un ID unique pour cette commande
+        $commandId = uniqid();
+        $commandFile = $commandsDir . DIRECTORY_SEPARATOR . $commandId . '.cmd';
+        $resultFile = $commandFile . '.result';
+        
+        // Créer le fichier de commande avec le format: work_dir|command
+        $commandContent = $workDir . '|' . $command;
+        error_log("Contenu du fichier de commande: " . $commandContent);
+        error_log("Fichier de commande: " . $commandFile);
+        
+        if (file_put_contents($commandFile, $commandContent) === false) {
+            error_log("ERREUR: Impossible de créer le fichier de commande: " . $commandFile);
+            return 1;
+        }
+        
+        error_log("Fichier de commande créé avec succès");
+        error_log("Commande envoyée au processor: " . $command . " dans " . $workDir);
+        
+        // Attendre que la commande soit traitée (maximum 60 secondes)
+        $timeout = 60;
+        $startTime = time();
+        error_log("Début de l'attente du résultat. Fichier attendu: " . $resultFile);
+        
+        $waitCount = 0;
+        while (time() - $startTime < $timeout) {
+            if (file_exists($resultFile)) {
+                $resultCode = (int)file_get_contents($resultFile);
+                unlink($resultFile); // Nettoyer le fichier de résultat
+                
+                error_log("Commande processor terminée avec le code: " . $resultCode . " après " . $waitCount . " itérations");
+                return $resultCode;
+            }
+            
+            // Log périodique pour suivre l'attente
+            $waitCount++;
+            if ($waitCount % 50 === 0) { // Log toutes les 5 secondes
+                error_log("Attente en cours... " . $waitCount . " itérations (" . (time() - $startTime) . "s)");
+            }
+            
+            // Attendre 100ms avant de vérifier à nouveau
+            usleep(100000);
+        }
+        
+        // Timeout atteint
+        error_log("Timeout lors de l'exécution de la commande dans le processor");
+        
+        // Nettoyer le fichier de commande s'il existe encore
+        if (file_exists($commandFile)) {
+            unlink($commandFile);
+        }
+        
+        return 1; // Code d'erreur
+    }
+}

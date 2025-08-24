@@ -1,0 +1,12 @@
+RewriteEngine On
+
+# Permettre l'accès au dossier workspace
+<IfModule mod_rewrite.c>
+    RewriteRule ^workspace/(.*)$ ../workspace/$1 [L]
+</IfModule>
+
+# Autoriser l'accès aux fichiers PDF
+<FilesMatch "\.pdf$">
+    Order allow,deny
+    Allow from all
+</FilesMatch> 

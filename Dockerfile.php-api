@@ -1,0 +1,46 @@
+FROM php:8.1-cli
+
+# Supprimer complètement l'entrypoint par défaut
+ENTRYPOINT []
+
+# Installation des extensions PHP nécessaires
+RUN apt-get update && apt-get install -y \
+    libzip-dev \
+    zip \
+    unzip \
+    git \
+    curl \
+    # Support PostgreSQL
+    libpq-dev \
+    && docker-php-ext-install zip pdo pdo_mysql pdo_pgsql \
+    && rm -rf /var/lib/apt/lists/*
+
+# Installation de Composer
+COPY --from=composer:latest /usr/bin/composer /usr/bin/composer
+
+# Configuration PHP pour les logs
+RUN echo "log_errors = On" >> /usr/local/etc/php/conf.d/error-logging.ini && \
+    echo "error_log = /dev/stderr" >> /usr/local/etc/php/conf.d/error-logging.ini && \
+    echo "display_errors = Off" >> /usr/local/etc/php/conf.d/error-logging.ini
+
+# Définir le répertoire de travail
+WORKDIR /app
+
+# Copier les fichiers de l'API
+COPY api/ .
+
+# Installer les dépendances PHP
+RUN composer install --no-dev --optimize-autoloader
+
+# Créer les dossiers nécessaires
+RUN mkdir -p public/files public/uploads workspace \
+    && chmod -R 755 public/files public/uploads workspace
+
+# Rendre le script de démarrage exécutable
+RUN chmod +x start.sh
+
+# Exposer le port 8080
+EXPOSE 8080
+
+# Commande par défaut
+CMD ["./start.sh"] 

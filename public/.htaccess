@@ -1,0 +1,14 @@
+Options +Indexes
+Options +FollowSymLinks
+RewriteEngine on
+
+# Permettre l'accès direct aux fichiers PDF
+<FilesMatch "\.(?i:pdf)$">
+  Header set Content-Type "application/pdf"
+  Header set Content-Disposition "inline"
+</FilesMatch>
+
+# Rediriger les requêtes non-fichiers vers index.php
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteCond %{REQUEST_FILENAME} !-d
+RewriteRule ^(.*)$ /index.php [L,QSA] 

@@ -1,0 +1,108 @@
+# Dependencies
+/node_modules
+/.pnp
+.pnp.js
+/api/vendor
+
+# Testing
+/coverage
+
+# Next.js
+/.next/
+/out/
+
+# Production
+/build
+
+# Misc
+.DS_Store
+*.pem
+Thumbs.db
+
+# Environment variables - CRITIQUE pour la sécurité
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+.env.*
+
+# Debug logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Docker
+/workspace/*
+!workspace/.gitkeep
+.docker
+
+# Cursor
+chathistory.md
+
+# LaTeX temporary files
+*.aux
+*.log
+*.pdf
+*.synctex.gz
+*.fls
+*.fdb_latexmk
+*.out
+
+# Fonts - exclure les polices personnalisées
+*.otf
+*.ttf
+fonts/
+layout/fonts/
+
+# SpecStory
+.specstory
+source
+typesetinprogress
+
+# Database
+*.sql
+*.db
+*.sqlite
+
+# Uploads et fichiers utilisateur
+/api/public/uploads/*
+!/api/public/uploads/.gitkeep
+/api/public/files/*
+!/api/public/files/.gitkeep
+/user_templates/*
+!/user_templates/.gitkeep
+
+# Logs
+*.log
+logs/
+error.log
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Temporary files
+*.tmp
+*.temp
+temp/
+tmp/
+
+# Documentation locale avec informations sensibles
+README-LOCAL.md
+
+# Scripts de déploiement avec informations sensibles
+deploy-to-morglaf.ps1
+
+# Configuration Docker
+docker-compose.yml
+
+# Configuration PostgreSQL
+init-db.sql
