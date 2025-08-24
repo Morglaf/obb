@@ -7,9 +7,14 @@ COMMAND_DIR="$WORKSPACE_DIR/commands"
 echo "Démarrage du surveillance des commandes dans $COMMAND_DIR"
 
 # Créer le répertoire de commandes s'il n'existe pas
-mkdir -p "$COMMAND_DIR"
-# S'assurer que le dossier est accessible en écriture par tous les utilisateurs
-chmod 777 "$COMMAND_DIR"
+if [[ ! -d "$COMMAND_DIR" ]]; then
+    mkdir -p "$COMMAND_DIR"
+    echo "Dossier commands créé: $COMMAND_DIR"
+fi
+
+# S'assurer que le dossier est accessible en écriture par l'utilisateur actuel
+chmod 755 "$COMMAND_DIR"
+echo "Permissions du dossier commands: $(ls -ld $COMMAND_DIR)"
 
 while true; do
     # Chercher des fichiers de commandes
