@@ -862,7 +862,8 @@ class AdminController
         
         try {
             // Définir le répertoire de destination selon le type
-            $typesetDir = __DIR__ . '/../../../typeset';
+            // Dans le conteneur Docker, le volume est monté sur /app/typeset
+            $typesetDir = '/app/typeset';
             $templateDir = '';
             
             switch ($templateType) {
@@ -917,7 +918,8 @@ class AdminController
     public function getSystemTemplates(Request $request, Response $response): Response
     {
         try {
-            $typesetDir = __DIR__ . '/../../../typeset';
+            // Dans le conteneur Docker, le volume est monté sur /app/typeset
+            $typesetDir = '/app/typeset';
             
             // Récupérer les templates de layout
             $layouts = $this->getFilesInDirectory($typesetDir . '/layout', '/\.(tex)$/i');
@@ -957,7 +959,8 @@ class AdminController
     public function getSystemFonts(Request $request, Response $response): Response
     {
         try {
-            $fontsDir = __DIR__ . '/../typeset/fonts';
+            // Dans le conteneur Docker, le volume est monté sur /app/typeset
+            $fontsDir = '/app/typeset/fonts';
             
             // Récupérer les polices
             $fonts = $this->getFilesInDirectory($fontsDir, '/\.(ttf|otf)$/i');
@@ -1045,7 +1048,8 @@ class AdminController
         }
         
         try {
-            $typesetDir = __DIR__ . '/../../../typeset';
+            // Dans le conteneur Docker, le volume est monté sur /app/typeset
+            $typesetDir = '/app/typeset';
             $templateDir = '';
             
             switch ($templateType) {
@@ -1117,7 +1121,8 @@ class AdminController
         }
         
         try {
-            $fontsDir = __DIR__ . '/../typeset/fonts';
+            // Dans le conteneur Docker, le volume est monté sur /app/typeset
+            $fontsDir = '/app/typeset/fonts';
             $fontFile = $fontsDir . '/' . $fontName;
             
             // Vérifier si le fichier existe
@@ -1183,7 +1188,8 @@ class AdminController
         }
         
         try {
-            $fontsDir = __DIR__ . '/../typeset/fonts';
+            // Dans le conteneur Docker, le volume est monté sur /app/typeset
+            $fontsDir = '/app/typeset/fonts';
             
             // Vérifier que le répertoire existe, sinon le créer
             if (!is_dir($fontsDir)) {

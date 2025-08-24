@@ -29,6 +29,9 @@ WORKDIR /app
 # Copier les fichiers de l'API
 COPY api/ .
 
+# Copier explicitement le fichier de version
+COPY api/version.json ./version.json
+
 # Installer les dépendances PHP
 RUN composer install --no-dev --optimize-autoloader
 

@@ -224,9 +224,10 @@ function processImposeFile($filePath) {
 }
 
 try {
-    $layoutsDir = __DIR__ . '/../typeset/layout';
-    $coversDir = __DIR__ . '/../typeset/cover';
-    $imposesDir = __DIR__ . '/../typeset/impose';
+    // Dans le conteneur Docker, le volume est monté sur /app/typeset
+    $layoutsDir = '/app/typeset/layout';
+    $coversDir = '/app/typeset/cover';
+    $imposesDir = '/app/typeset/impose';
     
     // Variables pour suivre les erreurs
     $invalidFiles = [
