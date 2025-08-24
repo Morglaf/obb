@@ -762,21 +762,28 @@ return function (App $app, ?AuthMiddleware $authMiddleware = null) {
             $versionFile = __DIR__ . '/../version.json';
             if (file_exists($versionFile)) {
                 $versionData = json_decode(file_get_contents($versionFile), true);
-                return $response->withJson([
+                if (json_last_error() !== JSON_ERROR_NONE) {
+                    throw new Exception('Erreur JSON: ' . json_last_error_msg());
+                }
+                
+                $response->getBody()->write(json_encode([
                     'status' => 'success',
                     'data' => $versionData
-                ]);
+                ]));
+                return $response->withHeader('Content-Type', 'application/json');
             } else {
-                return $response->withJson([
+                $response->getBody()->write(json_encode([
                     'status' => 'error',
                     'message' => 'Fichier de version non trouvé'
-                ], 404);
+                ]));
+                return $response->withHeader('Content-Type', 'application/json')->withStatus(404);
             }
         } catch (Exception $e) {
-            return $response->withJson([
+            $response->getBody()->write(json_encode([
                 'status' => 'error',
                 'message' => 'Erreur lors de la lecture de la version: ' . $e->getMessage()
-            ], 500);
+            ]));
+            return $response->withHeader('Content-Type', 'application/json')->withStatus(500);
         }
     });
 }; 
