@@ -72,8 +72,8 @@ function generateVersion() {
     })
   };
   
-  // Écrire dans un fichier JSON
-  const outputPath = path.join(__dirname, '..', 'src', 'version.json');
+  // Écrire dans un fichier JSON pour Next.js (dossier public)
+  const outputPath = path.join(__dirname, '..', 'public', 'version.json');
   fs.writeFileSync(outputPath, JSON.stringify(versionInfo, null, 2));
   
   // Écrire aussi dans un fichier PHP pour l'API

@@ -21,20 +21,30 @@ const VersionInfo: React.FC = () => {
     // Charger les informations de version
     const loadVersionInfo = async () => {
       try {
-        const response = await fetch('/api/version');
-        if (response.ok) {
-          const data = await response.json();
-          setVersionInfo(data);
+        console.log('🔄 Chargement des informations de version...');
+        
+        // Essayer d'abord le fichier local (plus fiable)
+        const localResponse = await fetch('/version.json');
+        console.log('📁 Réponse fichier local:', localResponse.status, localResponse.ok);
+        
+        if (localResponse.ok) {
+          const localData = await localResponse.json();
+          console.log('✅ Données locales chargées:', localData);
+          setVersionInfo(localData);
         } else {
-          // Fallback : essayer de charger depuis le fichier local
-          const localResponse = await fetch('/version.json');
-          if (localResponse.ok) {
-            const localData = await localResponse.json();
-            setVersionInfo(localData);
+          console.log('❌ Fichier local non trouvé, essai API...');
+          // Fallback : essayer l'API
+          const response = await fetch('/api/version');
+          console.log('🌐 Réponse API:', response.status, response.ok);
+          
+          if (response.ok) {
+            const data = await response.json();
+            console.log('✅ Données API chargées:', data);
+            setVersionInfo(data.data); // L'API retourne {status: 'success', data: {...}}
           }
         }
       } catch (error) {
-        console.warn('Impossible de charger les informations de version:', error);
+        console.error('❌ Erreur lors du chargement de la version:', error);
       } finally {
         setLoading(false);
       }
@@ -52,7 +62,13 @@ const VersionInfo: React.FC = () => {
   }
 
   if (!versionInfo) {
-    return null;
+    return (
+      <div className="text-xs text-gray-400 dark:text-gray-500">
+        <span>v0.1.0</span>
+        <span> • </span>
+        <span>Version non disponible</span>
+      </div>
+    );
   }
 
   // Construire l'URL Git
