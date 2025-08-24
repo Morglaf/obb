@@ -16,11 +16,30 @@ echo "⏳ Attente que Docker soit prêt..."
 sleep 5
 
 # Vérifier que le conteneur processor fonctionne
+echo "🔍 Vérification du conteneur processor..."
 if ! docker ps | grep -q "onlinebookbrew-processor-1"; then
     echo "❌ Le conteneur processor n'est pas en cours d'exécution !"
     echo "🔄 Redémarrage du conteneur processor..."
     docker restart onlinebookbrew-processor-1
     sleep 10
+fi
+
+# Vérifier si le conteneur peut exécuter des commandes
+echo "🔍 Test de fonctionnement du conteneur processor..."
+if docker exec onlinebookbrew-processor-1 test -w /workspace/commands 2>/dev/null; then
+    echo "✅ Le conteneur processor fonctionne correctement"
+else
+    echo "⚠️  Le conteneur processor a des problèmes de sécurité Docker"
+    echo "🔄 Redémarrage forcé du conteneur processor..."
+    docker restart onlinebookbrew-processor-1
+    sleep 15
+    echo "🔍 Vérification après redémarrage..."
+    if docker exec onlinebookbrew-processor-1 test -w /workspace/commands 2>/dev/null; then
+        echo "✅ Le conteneur processor fonctionne maintenant"
+    else
+        echo "❌ Le conteneur processor a toujours des problèmes"
+        echo "⚠️  La compilation pourrait ne pas fonctionner"
+    fi
 fi
 
 # Corriger les permissions de tout le dossier workspace

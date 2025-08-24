@@ -40,7 +40,7 @@ while true; do
             # Exécuter la commande dans le bon répertoire
             cd "$work_dir"
             
-            # Exécuter et capturer le code de retour (sans cd supplémentaire)
+            # Exécuter et capturer le code de retour
             eval "$command"
             result_code=$?
             
