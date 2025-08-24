@@ -1,10 +1,10 @@
 {
   "version": "0.1.0",
-  "fullVersion": "0.1.0.6",
-  "commitHash": "e35f616",
+  "fullVersion": "0.1.0.7",
+  "commitHash": "ef40a56",
   "commitDate": "2025-08-24",
-  "commitCount": "6",
+  "commitCount": "7",
   "branch": "master",
-  "buildDate": "2025-08-24T14:02:44.981Z",
-  "buildDateFormatted": "24 août 2025 à 16:02"
+  "buildDate": "2025-08-24T14:03:40.445Z",
+  "buildDateFormatted": "24 août 2025 à 16:03"
 }
