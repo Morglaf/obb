@@ -13,6 +13,7 @@ use App\Controllers\AuthController;
 use App\Controllers\UserTemplateController;
 use App\Controllers\UserFontController;
 use App\Controllers\AdminController;
+use App\Controllers\VersionController;
 use App\Middleware\AuthMiddleware;
 use App\Middleware\AdminMiddleware;
 
@@ -755,4 +756,7 @@ return function (App $app, ?AuthMiddleware $authMiddleware = null) {
             ], 500);
         }
     });
+
+    // Route pour récupérer les informations de version
+    $app->get('/version', [VersionController::class, 'getVersion']);
 }; 
