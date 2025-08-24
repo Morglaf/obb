@@ -1,7 +1,7 @@
 {
-  "last_deploy": "1.0.0.52",
+  "git_commit": "3084c39",
   "deploy_date": "2025-08-24 17:09:31",
-  "build": 52,
-  "git_commit": "bbec7b3",
-  "version": "1.0.0"
+  "last_deploy": "1.0.0.53",
+  "version": "1.0.0",
+  "build": 53
 }
